@@ -4,10 +4,10 @@ export default function RulesPage() {
       <section className="hero" style={{ borderBottom: "1px solid var(--line)" }}>
         <div className="wrap">
           <div className="hero-eyebrow">Rules</div>
-          <h1 style={{ fontSize: "clamp(28px, 4vw, 44px)" }}>Simple, and enforced.</h1>
+          <h1 style={{ fontSize: "clamp(28px, 4vw, 44px)" }}>Simple, and permanent.</h1>
           <p className="hero-sub">
-            A rank is earned by bid, and held for a fixed window. That&apos;s the whole mechanic.
-            Everything below exists to keep the board fair, relevant, and free of clutter.
+            Rank is a live sort by how much a link has paid, in total, ever. That&apos;s the whole
+            mechanic.
           </p>
         </div>
       </section>
@@ -19,41 +19,41 @@ export default function RulesPage() {
           <div className="how-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
             <div className="how-card">
               <h4>Starting bids</h4>
-              <p>New listings start at $5. Whole-dollar bids only. A listing keeps its rank until it&apos;s outbid or its 24-hour window expires.</p>
+              <p>A new link joins the board at $5 minimum. Whole-dollar bids only.</p>
             </div>
             <div className="how-card">
-              <h4>Outbidding</h4>
-              <p>Beat the current top bid on a listing by at least $1 to take that spot. Payment is captured immediately via Stripe.</p>
+              <h4>Topping up</h4>
+              <p>Already listed? Add $1 or more to your running total at any time to move up.</p>
             </div>
             <div className="how-card">
-              <h4>Time-bound holds</h4>
-              <p>Every claimed rank is guaranteed for 24 hours from the moment payment is confirmed. When the window ends, the slot opens again.</p>
+              <h4>Nothing expires</h4>
+              <p>A listing is on the board for good. There is no time window and no renewal.</p>
             </div>
             <div className="how-card">
-              <h4>One product, one listing</h4>
-              <p>Duplicate listings for the same product across categories are not allowed. Pick the category that actually fits.</p>
+              <h4>Getting outbid</h4>
+              <p>If someone pays more, you drop one place. Your listing stays visible — it does not disappear.</p>
             </div>
           </div>
 
           <div className="board-title" style={{ margin: "40px 0 20px" }}>
-            What can be listed
+            Payments
           </div>
           <div className="how-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
             <div className="how-card">
-              <h4>Eligible</h4>
-              <p>Any live AI product, tool, or platform with a working URL. Pre-launch tools with a real waitlist or demo page are welcome.</p>
+              <h4>Charged immediately</h4>
+              <p>Bids are captured via Stripe when checkout completes. Your total updates automatically.</p>
+            </div>
+            <div className="how-card">
+              <h4>Never refunded</h4>
+              <p>No refunds, ever, for any reason, including being outbid. Every dollar paid is permanent.</p>
             </div>
             <div className="how-card">
               <h4>Not eligible</h4>
-              <p>Chat or invite links, adult content, tools with no functioning product behind them, and listings unrelated to AI.</p>
-            </div>
-            <div className="how-card">
-              <h4>Payments</h4>
-              <p>Bids are charged immediately via Stripe when you submit. Bids are non-refundable once a listing goes live — see your dashboard for receipts.</p>
+              <p>Direct chat/invite links, adult content, and links with no working destination will be removed.</p>
             </div>
             <div className="how-card">
               <h4>Moderation</h4>
-              <p>RankAI may remove listings that violate these rules. Admins can deactivate a listing at any time; contact support for a review.</p>
+              <p>Listings that violate these rules can be hidden from the board at any time.</p>
             </div>
           </div>
         </div>

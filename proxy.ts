@@ -1,21 +1,18 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { ADMIN_SESSION_COOKIE_NAME, verifyAdminSessionCookie } from "@/lib/admin-auth";
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    if (req.nextUrl.pathname.startsWith("/admin") && token?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
+export default function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith("/admin/login")) {
     return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
   }
-);
+
+  const cookie = req.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value;
+  if (!verifyAdminSessionCookie(cookie)) {
+    return NextResponse.redirect(new URL("/admin/login", req.url));
+  }
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/admin/:path*"],
 };

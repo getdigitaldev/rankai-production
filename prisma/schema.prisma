@@ -7,64 +7,20 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  USER
-  ADMIN
-}
-
-enum ListingStatus {
-  PENDING_PAYMENT
-  ACTIVE
-  OUTBID
-  EXPIRED
-  CANCELLED
-}
-
-model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  passwordHash     String
-  name             String?
-  role             Role      @default(USER)
-  stripeCustomerId String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  listings         Listing[]
-}
-
-model Category {
-  id       String    @id @default(cuid())
-  slug     String    @unique
-  label    String
-  order    Int       @default(0)
-  listings Listing[]
-}
-
 model Listing {
-  id                    String        @id @default(cuid())
-  name                  String
-  url                   String
-  description           String
-  bidAmountCents        Int
-  status                ListingStatus @default(PENDING_PAYMENT)
-  clicks                Int           @default(0)
-  claimedAt             DateTime?
-  expiresAt             DateTime?
-  stripeSessionId       String?       @unique
-  stripePaymentIntentId String?
-  replacedListingId     String?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id])
+  id             String   @id @default(cuid())
+  url            String   @unique
+  name           String
+  description    String?
+  totalPaidCents Int      @default(0)
+  clicks         Int      @default(0)
+  hidden         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   payments Payment[]
 
-  @@index([categoryId, status])
+  @@index([totalPaidCents])
 }
 
 model Payment {
@@ -72,7 +28,6 @@ model Payment {
   amountCents           Int
   stripeSessionId       String   @unique
   stripePaymentIntentId String?
-  status                String
   createdAt             DateTime @default(now())
 
   listingId String

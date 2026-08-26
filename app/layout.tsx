@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Providers } from "./providers";
 import Header from "./components/Header";
 
 export const metadata: Metadata = {
-  title: "RankAI — AI Tools Visibility Exchange",
-  description:
-    "A category-focused visibility exchange for AI tools. Bid for a time-bound rank in front of people shopping for AI tools.",
+  title: "Outbid — pay to rank",
+  description: "Submit a link, bid to rank it. The board sorts by total paid. Nothing expires, nothing gets refunded.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -21,13 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Providers>
-          <Header />
-          {children}
-          <footer>
-            RankAI — a category-focused visibility exchange for AI tools
-          </footer>
-        </Providers>
+        <Header />
+        {children}
+        <footer>Outbid — pay to rank</footer>
       </body>
     </html>
   );

@@ -1,43 +1,16 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { formatUsd, timeAgoLabel, timeLeftLabel } from "@/lib/format";
+import { formatUsd, timeAgoLabel } from "@/lib/format";
+import BidForm from "./components/BidForm";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeaderboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ cat?: string }>;
-}) {
-  const activeCat = (await searchParams).cat || "all";
-
-  const categories = await prisma.category.findMany({ orderBy: { order: "asc" } });
-
+export default async function BoardPage() {
   const listings = await prisma.listing.findMany({
-    where: {
-      status: "ACTIVE",
-      ...(activeCat !== "all" ? { category: { slug: activeCat } } : {}),
-    },
-    include: { category: true },
-    orderBy: { bidAmountCents: "desc" },
+    where: { hidden: false },
+    orderBy: { totalPaidCents: "desc" },
   });
 
-  const counts: Record<string, number> = { all: listings.length === 0 ? 0 : 0 };
-  const allActiveListings = await prisma.listing.findMany({
-    where: { status: "ACTIVE" },
-    select: { categoryId: true, category: { select: { slug: true } } },
-  });
-  counts.all = allActiveListings.length;
-  for (const c of categories) {
-    counts[c.slug] = allActiveListings.filter((l) => l.category.slug === c.slug).length;
-  }
-
-  const totalPoolCents = allActiveListings.length
-    ? (await prisma.listing.aggregate({ where: { status: "ACTIVE" }, _sum: { bidAmountCents: true } }))._sum
-        .bidAmountCents || 0
-    : 0;
-
-  const currentLabel = activeCat === "all" ? "All categories" : categories.find((c) => c.slug === activeCat)?.label;
+  const totalPaidCents = listings.reduce((sum, l) => sum + l.totalPaidCents, 0);
 
   return (
     <div>
@@ -45,60 +18,47 @@ export default async function LeaderboardPage({
         <div className="wrap">
           <div className="hero-eyebrow">Live — real bids, real Stripe checkout</div>
           <h1>
-            Outbid your category. <em>Not the internet.</em>
+            Pay to rank. <em>Nothing else decides.</em>
           </h1>
           <p className="hero-sub">
-            A visibility exchange built only for AI tools. No crypto, no peptides, no noise, just
-            AI products bidding for a time-bound spot in front of people actually shopping for AI
-            tools.
+            Submit a link, bid an amount, take a spot. Getting outbid just drops you a place — your
+            listing stays up and nothing is refunded. Every dollar paid stays on the board, forever.
           </p>
           <div className="hero-stats">
             <div className="stat-block">
-              <div className="stat-num">{counts.all}</div>
-              <div className="stat-label">Live listings</div>
+              <div className="stat-num">{listings.length}</div>
+              <div className="stat-label">Listings</div>
             </div>
             <div className="stat-block">
-              <div className="stat-num">{categories.length}</div>
-              <div className="stat-label">Categories</div>
+              <div className="stat-num">{formatUsd(totalPaidCents)}</div>
+              <div className="stat-label">Total paid</div>
             </div>
             <div className="stat-block">
-              <div className="stat-num">{formatUsd(totalPoolCents)}</div>
-              <div className="stat-label">Total bid volume</div>
+              <div className="stat-num">{listings[0] ? formatUsd(listings[0].totalPaidCents) : "$0"}</div>
+              <div className="stat-label">Current #1</div>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="cat-bar wrap">
-        <Link href="/" className={`cat-tab ${activeCat === "all" ? "active" : ""}`}>
-          All <span className="cat-count">{counts.all}</span>
-        </Link>
-        {categories.map((c) => (
-          <Link
-            key={c.id}
-            href={`/?cat=${c.slug}`}
-            className={`cat-tab ${activeCat === c.slug ? "active" : ""}`}
-          >
-            {c.label} <span className="cat-count">{counts[c.slug] || 0}</span>
-          </Link>
-        ))}
-      </div>
+      <section className="board">
+        <div className="wrap">
+          <BidForm />
+        </div>
+      </section>
 
       <section className="board">
         <div className="wrap">
           <div className="board-head">
-            <div className="board-title">{currentLabel}</div>
-            <div className="board-note">Ranks reset every 24h · time-bound bidding</div>
+            <div className="board-title">The board</div>
+            <div className="board-note">Sorted by total paid · permanent · never refunded</div>
           </div>
 
           {listings.length === 0 ? (
-            <div className="empty-state">
-              No listings in this category yet. Be the first to claim #1 — starting bid $5.
-            </div>
+            <div className="empty-state">No listings yet. Be the first — starting bid $5.</div>
           ) : (
             listings.map((l, idx) => {
               const rank = idx + 1;
-              const tl = timeLeftLabel(l.expiresAt);
               return (
                 <div className="row" key={l.id}>
                   <div className={`rank-num ${rank <= 3 ? "top" : ""}`}>{rank}</div>
@@ -108,18 +68,12 @@ export default async function LeaderboardPage({
                         {l.name}
                       </a>
                     </div>
-                    <div className="entry-desc">{l.description}</div>
                     <div className="entry-meta">
                       <span>{l.clicks.toLocaleString()} clicks</span>
-                      <span>{timeAgoLabel(l.claimedAt ?? l.createdAt)}</span>
-                      <span>{l.category.label}</span>
+                      <span>{timeAgoLabel(l.createdAt)}</span>
                     </div>
                   </div>
-                  <div className="col-bid">{formatUsd(l.bidAmountCents)}</div>
-                  <div className={`col-time ${tl.urgent ? "urgent" : ""}`}>{tl.text}</div>
-                  <Link href={`/dashboard/new?targetId=${l.id}`} className="outbid-btn">
-                    Outbid →
-                  </Link>
+                  <div className="col-bid">{formatUsd(l.totalPaidCents)}</div>
                 </div>
               );
             })
@@ -129,27 +83,27 @@ export default async function LeaderboardPage({
 
       <section className="how">
         <div className="wrap">
-          <div className="board-title">How the exchange works</div>
+          <div className="board-title">How it works</div>
           <div className="how-grid">
             <div className="how-card">
               <div className="how-num">01</div>
-              <h4>Pick a category</h4>
-              <p>List under the AI sub-sector that actually matches your product.</p>
+              <h4>Submit a link</h4>
+              <p>Any URL. New listings start at $5.</p>
             </div>
             <div className="how-card">
               <div className="how-num">02</div>
-              <h4>Bid for a rank</h4>
-              <p>Outbid the current holder of any position, or open a fresh one starting at $5.</p>
+              <h4>Bid to rank</h4>
+              <p>Rank is a live sort by total paid. Top up any time for at least $1 more.</p>
             </div>
             <div className="how-card">
               <div className="how-num">03</div>
-              <h4>Hold it for 24 hours</h4>
-              <p>Your bid guarantees the spot for a fixed window via a real Stripe payment.</p>
+              <h4>Never expires</h4>
+              <p>No time limit, no refunds. Outbid just means one spot lower, not gone.</p>
             </div>
             <div className="how-card">
               <div className="how-num">04</div>
-              <h4>Track real clicks</h4>
-              <p>Every listing shows verified, server-tracked click counts.</p>
+              <h4>Real clicks</h4>
+              <p>Every listing shows a verified, server-tracked click count.</p>
             </div>
           </div>
         </div>
