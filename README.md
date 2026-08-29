@@ -104,4 +104,4 @@ RankAI leaderboard prototype as a real, deployable app with user and admin dashb
 - Next.js 16 deprecated the `middleware` file convention in favor of `proxy` — this project
   already uses `proxy.ts` at the root. `package.json#prisma` (used for `db:seed`) is
   deprecated in favor of a `prisma.config.ts` file; it still works in Prisma 6.x today but
-  will need migrating before a future Prisma 7 upgrade.
+  will need migrating before a future Prisma 7 upgrade..
