@@ -30,7 +30,7 @@ export default function RulesPage() {
               <p>A listing is on the board for good. There is no time window and no renewal.</p>
             </div>
             <div className="how-card">
-              <h4>Getting outbid</h4>
+              <h4>Getting passed</h4>
               <p>If someone pays more, you drop one place. Your listing stays visible — it does not disappear.</p>
             </div>
           </div>
@@ -45,7 +45,7 @@ export default function RulesPage() {
             </div>
             <div className="how-card">
               <h4>Never refunded</h4>
-              <p>No refunds, ever, for any reason, including being outbid. Every dollar paid is permanent.</p>
+              <p>No refunds, ever, for any reason, including being passed on the board. Every dollar paid is permanent.</p>
             </div>
             <div className="how-card">
               <h4>Not eligible</h4>

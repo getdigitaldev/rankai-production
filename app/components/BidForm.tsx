@@ -1,21 +1,64 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { avatarStyle } from "@/lib/format";
+import Favicon from "./Favicon";
 
-function BidFormInner() {
+type Preview = { title: string; faviconUrl: string | null; domain: string };
+
+function BidFormInner({ suggestedAmountCents, floorCents }: { suggestedAmountCents: number; floorCents: number }) {
   const searchParams = useSearchParams();
-  const [name, setName] = useState(searchParams.get("name") ?? "");
   const [url, setUrl] = useState(searchParams.get("url") ?? "");
-  const [amount, setAmount] = useState(searchParams.get("amount") ?? "");
+  const [amountCents, setAmountCents] = useState(
+    Number(searchParams.get("amount")) > 0
+      ? Math.round(Number(searchParams.get("amount"))) * 100
+      : suggestedAmountCents,
+  );
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const amountDollars = Math.round(amountCents / 100);
+
+  function step(deltaCents: number) {
+    setAmountCents((c) => Math.max(floorCents, c + deltaCents));
+  }
+
+  useEffect(() => {
+    const trimmed = url.trim();
+    if (trimmed.length < 3) {
+      setPreview(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    setPreviewLoading(true);
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(trimmed)}`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        setPreview(data);
+      } catch {
+        setPreview(null);
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(handle);
+  }, [url]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
-    const amountCents = Math.round(Number(amount) * 100);
+    if (!url.trim()) {
+      setError("Enter a URL.");
+      return;
+    }
     if (!Number.isFinite(amountCents) || amountCents <= 0) {
       setError("Enter a valid bid amount.");
       return;
@@ -25,7 +68,7 @@ function BidFormInner() {
     const res = await fetch("/api/listings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, url, amountCents }),
+      body: JSON.stringify({ url, amountCents }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -39,56 +82,74 @@ function BidFormInner() {
   }
 
   return (
-    <form className="form-card" id="bid" onSubmit={onSubmit}>
-      <h3>Submit or bid</h3>
-      <p className="form-sub">
-        New link, $5 to join the board. Already listed? Add any amount ≥ $1 to your total.
+    <div className="board-hero" id="bid">
+      <h2 className="claim-heading">
+        Claim #1 for
+        <span className="claim-stepper">
+          <button type="button" className="stepper-btn" onClick={() => step(-100)} aria-label="Decrease bid by one dollar">
+            −
+          </button>
+          <span className="claim-amt">${amountDollars.toLocaleString()}</span>
+          <button type="button" className="stepper-btn" onClick={() => step(100)} aria-label="Increase bid by one dollar">
+            +
+          </button>
+        </span>
+      </h2>
+      <p className="claim-sub">
+        <strong>New spots start at $5.</strong> Paying less than the #1 price still puts you on the
+        board at whatever place that bid can take.
       </p>
 
-      {error && <div className="form-error">{error}</div>}
-
-      <div className="field">
-        <label>URL</label>
+      <form className="bid-bar" onSubmit={onSubmit}>
         <input
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="yoursite.com"
+          placeholder="Your product URL"
           required
         />
-      </div>
-      <div className="field-row">
-        <div className="field">
-          <label>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your product" required />
-        </div>
-        <div className="field">
-          <label>Bid ($)</label>
-          <input
-            type="number"
-            min={1}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="5"
-            required
-          />
-        </div>
-      </div>
+        <button className="bid-bar-btn" disabled={loading} type="submit">
+          {loading ? "Redirecting…" : "Claim Rank"}
+        </button>
+      </form>
 
-      <button className="submit-btn" disabled={loading} type="submit">
-        {loading ? "Redirecting to checkout…" : "Continue to Stripe checkout"}
-      </button>
-      <p className="form-disclaimer">
-        Bids are never refunded. Your listing never expires — getting outbid just drops your rank.
+      {(previewLoading || preview) && (
+        <div className="link-preview">
+          {previewLoading ? (
+            <span className="link-preview-loading">Fetching page details…</span>
+          ) : preview ? (
+            <>
+              <Favicon
+                src={preview.faviconUrl}
+                letter={preview.domain.charAt(0).toUpperCase() || "?"}
+                background={avatarStyle(preview.domain).background}
+                color={avatarStyle(preview.domain).color}
+              />
+              <span className="link-preview-title">{preview.title}</span>
+              <span className="link-preview-domain">{preview.domain}</span>
+            </>
+          ) : null}
+        </div>
+      )}
+
+      {error && <div className="form-error bid-bar-error">{error}</div>}
+      <p className="claim-disclaimer">
+        Bids are never refunded. Your listing never expires — falling behind just drops your rank.
       </p>
-    </form>
+    </div>
   );
 }
 
-export default function BidForm() {
+export default function BidForm({
+  suggestedAmountCents,
+  floorCents,
+}: {
+  suggestedAmountCents: number;
+  floorCents: number;
+}) {
   return (
     <Suspense fallback={null}>
-      <BidFormInner />
+      <BidFormInner suggestedAmountCents={suggestedAmountCents} floorCents={floorCents} />
     </Suspense>
   );
 }

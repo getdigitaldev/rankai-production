@@ -26,7 +26,7 @@ export default function AboutPage() {
             <div className="how-card">
               <div className="how-num">→</div>
               <h4>Permanent, not rented</h4>
-              <p>A listing never expires. Getting outbid drops your rank, it doesn&apos;t remove you.</p>
+              <p>A listing never expires. Getting passed drops your rank, it doesn&apos;t remove you.</p>
             </div>
             <div className="how-card">
               <div className="how-num">→</div>

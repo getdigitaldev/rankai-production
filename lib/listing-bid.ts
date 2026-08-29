@@ -41,7 +41,9 @@ export function computeBidFloorCents(existingTotalPaidCents: number | null): num
 
 type ListingLookup = {
   listing: {
-    findUnique: (args: { where: { url: string } }) => Promise<{ totalPaidCents: number } | null>;
+    findUnique: (args: {
+      where: { url: string };
+    }) => Promise<{ name: string; faviconUrl: string | null; totalPaidCents: number } | null>;
   };
 };
 
@@ -55,9 +57,11 @@ type CheckoutCreator = {
   };
 };
 
+type PreviewFetcher = (url: string) => Promise<{ title: string; faviconUrl: string | null }>;
+
 export async function prepareCheckout(
-  deps: { prisma: ListingLookup; stripe: CheckoutCreator },
-  input: { url: string; name: string; amountCents: number },
+  deps: { prisma: ListingLookup; stripe: CheckoutCreator; fetchPreview: PreviewFetcher },
+  input: { url: string; amountCents: number },
 ): Promise<{ checkoutUrl: string }> {
   const url = normalizeListingUrl(input.url);
   const existing = await deps.prisma.listing.findUnique({ where: { url } });
@@ -67,6 +71,10 @@ export async function prepareCheckout(
     throw new BidTooLowError(floorCents);
   }
 
+  const { name, faviconUrl } = existing
+    ? { name: existing.name, faviconUrl: existing.faviconUrl }
+    : await deps.fetchPreview(url).then((p) => ({ name: p.title, faviconUrl: p.faviconUrl }));
+
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 
   const session = await deps.stripe.checkout.sessions.create({
@@ -75,7 +83,7 @@ export async function prepareCheckout(
       {
         price_data: {
           currency: "usd",
-          product_data: { name: `Bid on ${input.name}` },
+          product_data: { name: `Bid on ${name}` },
           unit_amount: input.amountCents,
         },
         quantity: 1,
@@ -83,7 +91,8 @@ export async function prepareCheckout(
     ],
     metadata: {
       url,
-      name: input.name,
+      name,
+      faviconUrl: faviconUrl ?? "",
       amountCents: String(input.amountCents),
     },
     success_url: `${baseUrl}/?paid=1`,
@@ -105,7 +114,7 @@ type TransactionClient = {
   listing: {
     upsert: (args: {
       where: { url: string };
-      create: { url: string; name: string; totalPaidCents: number };
+      create: { url: string; name: string; faviconUrl: string | null; totalPaidCents: number };
       update: { totalPaidCents: { increment: number } };
     }) => Promise<{ id: string; url: string; totalPaidCents: number }>;
   };
@@ -124,7 +133,7 @@ type TransactionClient = {
 type CheckoutSessionLike = {
   id: string;
   payment_intent: string | null;
-  metadata: { url: string; name: string; amountCents: string } | null;
+  metadata: { url: string; name: string; faviconUrl?: string; amountCents: string } | null;
 };
 
 function isDuplicateStripeSessionError(err: unknown): boolean {
@@ -151,7 +160,12 @@ export async function confirmPayment(
     await deps.prisma.$transaction(async (tx) => {
       const listing = await tx.listing.upsert({
         where: { url: metadata.url },
-        create: { url: metadata.url, name: metadata.name, totalPaidCents: amountCents },
+        create: {
+          url: metadata.url,
+          name: metadata.name,
+          faviconUrl: metadata.faviconUrl || null,
+          totalPaidCents: amountCents,
+        },
         update: { totalPaidCents: { increment: amountCents } },
       });
 

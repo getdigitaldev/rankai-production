@@ -3,7 +3,7 @@ import "./globals.css";
 import Header from "./components/Header";
 
 export const metadata: Metadata = {
-  title: "Outbid — pay to rank",
+  title: "toprank — pay to rank",
   description: "Submit a link, bid to rank it. The board sorts by total paid. Nothing expires, nothing gets refunded.",
 };
 
@@ -14,14 +14,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Geist+Mono:wght@100..900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Geist+Mono:wght@100..900&display=swap"
           rel="stylesheet"
         />
       </head>
       <body>
         <Header />
         {children}
-        <footer>Outbid — pay to rank</footer>
+        <footer>
+          <div className="wrap">toprank — pay to rank</div>
+        </footer>
       </body>
     </html>
   );

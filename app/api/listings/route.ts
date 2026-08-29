@@ -3,9 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { prepareCheckout, BidTooLowError } from "@/lib/listing-bid";
+import { fetchLinkPreview } from "@/lib/link-preview";
 
 const schema = z.object({
-  name: z.string().min(1).max(120),
   url: z.string().min(1).max(2000),
   amountCents: z.number().int().positive(),
 });
@@ -18,8 +18,8 @@ export async function POST(req: Request) {
 
   try {
     const result = await prepareCheckout(
-      { prisma, stripe },
-      { url: parsed.data.url, name: parsed.data.name, amountCents: parsed.data.amountCents },
+      { prisma, stripe, fetchPreview: fetchLinkPreview },
+      { url: parsed.data.url, amountCents: parsed.data.amountCents },
     );
     return NextResponse.json(result);
   } catch (err) {

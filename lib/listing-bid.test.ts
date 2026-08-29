@@ -52,7 +52,9 @@ describe("computeBidFloorCents", () => {
   });
 });
 
-function fakePrisma(existingListing: { url: string; totalPaidCents: number } | null) {
+function fakePrisma(
+  existingListing: { url: string; name: string; faviconUrl: string | null; totalPaidCents: number } | null,
+) {
   return {
     listing: {
       findUnique: vi.fn(async () => existingListing),
@@ -70,45 +72,79 @@ function fakeStripe(checkoutUrl = "https://checkout.stripe.com/session/123") {
   };
 }
 
+function fakePreviewFetcher(preview = { title: "Fetched Title", faviconUrl: "https://example.com/favicon.ico" }) {
+  return vi.fn(async () => preview);
+}
+
 describe("prepareCheckout", () => {
   it("rejects a bid below the $5 floor for a new url", async () => {
     const prisma = fakePrisma(null);
     const stripe = fakeStripe();
+    const fetchPreview = fakePreviewFetcher();
     await expect(
       prepareCheckout(
-        { prisma: prisma as any, stripe: stripe as any },
-        { url: "https://example.com", name: "Example", amountCents: 400 },
+        { prisma: prisma as any, stripe: stripe as any, fetchPreview },
+        { url: "https://example.com", amountCents: 400 },
       ),
     ).rejects.toBeInstanceOf(BidTooLowError);
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(fetchPreview).not.toHaveBeenCalled();
   });
 
   it("rejects a bid below the $1 top-up floor for an existing url", async () => {
-    const prisma = fakePrisma({ url: "https://example.com", totalPaidCents: 900 });
+    const prisma = fakePrisma({ url: "https://example.com", name: "Example", faviconUrl: null, totalPaidCents: 900 });
     const stripe = fakeStripe();
     await expect(
       prepareCheckout(
-        { prisma: prisma as any, stripe: stripe as any },
-        { url: "https://example.com", name: "Example", amountCents: 50 },
+        { prisma: prisma as any, stripe: stripe as any, fetchPreview: fakePreviewFetcher() },
+        { url: "https://example.com", amountCents: 50 },
       ),
     ).rejects.toBeInstanceOf(BidTooLowError);
   });
 
-  it("creates a Stripe checkout session with normalized-url metadata and returns its url", async () => {
+  it("fetches page metadata for a brand-new url and uses it as the Stripe product/metadata name", async () => {
     const prisma = fakePrisma(null);
     const stripe = fakeStripe("https://checkout.stripe.com/session/abc");
+    const fetchPreview = fakePreviewFetcher({ title: "Cool Tool", faviconUrl: "https://example.com/icon.png" });
     const result = await prepareCheckout(
-      { prisma: prisma as any, stripe: stripe as any },
-      { url: "https://ExAmple.com/tool/?utm_source=x", name: "Example", amountCents: 500 },
+      { prisma: prisma as any, stripe: stripe as any, fetchPreview },
+      { url: "https://ExAmple.com/tool/?utm_source=x", amountCents: 500 },
     );
 
     expect(result.checkoutUrl).toBe("https://checkout.stripe.com/session/abc");
-    expect(stripe.checkout.sessions.create).toHaveBeenCalledTimes(1);
+    expect(fetchPreview).toHaveBeenCalledWith("https://example.com/tool");
     const call = stripe.checkout.sessions.create.mock.calls[0][0];
     expect(call.metadata).toEqual({
       url: "https://example.com/tool",
-      name: "Example",
+      name: "Cool Tool",
+      faviconUrl: "https://example.com/icon.png",
       amountCents: "500",
+    });
+    expect(call.line_items[0].price_data.product_data.name).toBe("Bid on Cool Tool");
+  });
+
+  it("reuses the existing listing's name instead of re-fetching for a top-up bid", async () => {
+    const prisma = fakePrisma({
+      url: "https://example.com/tool",
+      name: "Already Known",
+      faviconUrl: "https://example.com/known-icon.png",
+      totalPaidCents: 900,
+    });
+    const stripe = fakeStripe();
+    const fetchPreview = fakePreviewFetcher();
+    const result = await prepareCheckout(
+      { prisma: prisma as any, stripe: stripe as any, fetchPreview },
+      { url: "https://example.com/tool", amountCents: 200 },
+    );
+
+    expect(result.checkoutUrl).toBeTruthy();
+    expect(fetchPreview).not.toHaveBeenCalled();
+    const call = stripe.checkout.sessions.create.mock.calls[0][0];
+    expect(call.metadata).toEqual({
+      url: "https://example.com/tool",
+      name: "Already Known",
+      faviconUrl: "https://example.com/known-icon.png",
+      amountCents: "200",
     });
   });
 });
@@ -131,7 +167,7 @@ function fakeTransactionalPrisma(initial: Map<string, { id: string; totalPaidCen
           return existing;
         }
         const created = { id: `listing_${listings.size + 1}`, url: where.url, ...create };
-        listings.set(where.url, created);
+        listings.set(where.url, created as any);
         return created;
       }),
     },
